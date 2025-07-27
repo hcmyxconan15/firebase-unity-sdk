@@ -1,0 +1,61 @@
+name: Deploy UPM Package
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Auto-detect package.json and deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Git identity
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Find package.json and extract version
+        id: extract_version
+        run: |
+          MATCH_FILE=$(find . -type f -name package.json -exec grep -l '"name": "com.undercats.boyou"' {} \;)
+          
+          if [ -z "$MATCH_FILE" ]; then
+            echo "❌ Không tìm thấy package.json phù hợp!"
+            exit 1
+          fi
+
+          VERSION=$(jq -r .version "$MATCH_FILE")
+          echo "MATCH_FILE=$MATCH_FILE" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+          echo "✅ Found package.json at $MATCH_FILE"
+          echo "🔢 Version: $VERSION"
+
+      - name: Deploy UPM package
+        run: |
+          set -ex
+
+          SEMVER="$VERSION"
+          if [ -z "$SEMVER" ]; then
+            echo "You must provide the --semver option."
+            exit 1
+          fi
+
+          # Loại bỏ ./ ở đầu nếu có
+          PREFIX=$(dirname "$MATCH_FILE" | sed 's|^\./||')
+          BRANCH="upm"
+
+          # Tách subtree và gắn tag
+          git subtree split --prefix="$PREFIX" --branch $BRANCH
+          git tag "$SEMVER" $BRANCH
+
+          # Chỉ đẩy tag (không đẩy nhánh)
+          git push origin --tags
+
+          # Dọn dẹp nhánh local tạm
+          git branch -D $BRANCH
