@@ -1,0 +1,9 @@
+{
+  "name": "com.undercats.analytics",
+  "version": "1.0.1",
+  "displayName": "Analytics",
+  "description": "Analytics",
+  "unity": "2019.1",
+  "dependencies": {
+ }
+}
